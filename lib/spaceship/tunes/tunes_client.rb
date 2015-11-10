@@ -38,27 +38,6 @@ module Spaceship
       "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/"
     end
 
-    # returns wosinst, wosid and itctx
-    def login_overhead_cookies(myacinfo)
-      return @login_overhead_cookies if @login_overhead_cookies
-
-      response = request(:get, "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/wa/route?noext") # for woinst and wosid
-      cookies = {
-        woinst: response['Set-Cookie'].match(/woinst=([^;]*)/)[1],
-        wosid: response['Set-Cookie'].match(/wosid=([^;]*)/)[1],
-        myacinfo: myacinfo
-      }
-
-      # The second request has to be after getting the woinst and wois
-      woa = request(:get) do |req|
-        req.url "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa"
-        req.headers["Cookie"] = cookies.collect { |k, v| "#{k}=#{v}; " }.join("")
-      end
-      cookies[:itctx] = woa['Set-Cookie'].match(/itctx=([^;]*)/)[1]
-
-      return @login_overhead_cookies ||= cookies
-    end
-
     def send_login_request(user, password)
       data = {
         accountName: user,
@@ -70,33 +49,22 @@ module Spaceship
         req.url "https://idmsa.apple.com/appleauth/auth/signin"
         req.body = data.to_json
         req.headers['Content-Type'] = 'application/json'
+        req.headers['X-Requested-With'] = 'XMLHttpRequest'
+        req.headers['Accept'] = 'application/json, text/javascript'
       end
 
-      if response['Set-Cookie'] =~ /myacinfo=(\w+);/
-        # To use the session properly we'll need the following cookies:
-        #  - myacinfo
-        #  - woinst
-        #  - wosid
-        #  - itctx
-        begin
-          re = response['Set-Cookie']
-          myacinfo = re.match(/myacinfo=([^;]*)/)[1]
-          cookies = login_overhead_cookies(myacinfo)
+      # get woinst, wois, and itctx cookie values
+      request(:get, "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/wa/route?noext")
+      request(:get, "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa")
 
-          @cookie = cookies.collect { |k, v| "#{k}=#{v}; " }.join("")
-        rescue
-          raise ITunesConnectError.new, [response.body, response['Set-Cookie']].join("\n")
-        end
-
-        return @client
+      case response.status
+      when 403, 401
+        raise InvalidUserCredentialsError.new, "Invalid username and password combination. Used '#{user}' as the username."
+      when 200
+        return response
       else
-        if (response.body || "").include?("Your Apple ID or password was entered incorrectly")
-          # User Credentials are wrong
-          raise InvalidUserCredentialsError.new, "Invalid username and password combination. Used '#{user}' as the username."
-        else
-          info = [response.body, response['Set-Cookie']]
-          raise ITunesConnectError.new, info.join("\n")
-        end
+        info = [response.body, response['Set-Cookie']]
+        raise ITunesConnectError.new, info.join("\n")
       end
     end
 
