@@ -1,3 +1,5 @@
+require 'pry'
+
 module Spaceship
   # rubocop:disable Metrics/ClassLength
   class TunesClient < Spaceship::Client
@@ -361,7 +363,6 @@ module Spaceship
         measures: measures,
         startTime: start_time
       }
-
       r = request(:post) do |req|
         req.url "https://analytics.itunes.apple.com/analytics/api/v1/data/time-series"
         req.body = data.to_json

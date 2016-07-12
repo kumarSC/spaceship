@@ -127,7 +127,7 @@ module Spaceship
       end
 
       def analytics
-        Spaceship::Tunes::AppAnalytics.new(apple_id: self.apple_id)
+        Spaceship::Tunes::AppAnalytics.new({ 'adamId' => apple_id })
       end
 
       # @return (Hash) Contains the reason for rejection.

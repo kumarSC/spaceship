@@ -1,3 +1,5 @@
+require 'pry'
+
 module Spaceship
   module Tunes
     class AppAnalytics < TunesBase
@@ -7,6 +9,10 @@ module Spaceship
       attr_mapping({
         'adamId' => :apple_id
       })
+
+      # def initialize(params = {})
+      #   @apple_id = params.fetch(:apple_id, '1006972087')
+      # end
 
       class << self
         def factory(attrs)
@@ -22,7 +28,6 @@ module Spaceship
 
       def app_views
         start_t, end_t = time_last_7_days
-
         app_views_interval(start_t, end_t)
       end
 
@@ -69,7 +74,7 @@ module Spaceship
       end
 
       def app_crashes
-        start_t, end_t = time_last_7_days
+        start_t, end_t = time_itunes_schedule
 
         app_crashes_interval(start_t, end_t)
       end
@@ -110,6 +115,8 @@ module Spaceship
         client.time_series_analytics([apple_id], ['rollingActiveDevices'], start_t, end_t, "DAY")
       end
 
+
+
       def app_crashes_interval(start_t, end_t)
         client.time_series_analytics([apple_id], ['crashes'], start_t, end_t, "DAY")
       end
@@ -118,6 +125,15 @@ module Spaceship
         time = Time.now
         past = time - (60 * 60 * 24 * 7)
         end_t   = time.strftime("%Y-%m-%dT00:00:00Z")
+        start_t = past.strftime("%Y-%m-%dT00:00:00Z")
+
+        return start_t, end_t
+      end
+
+      def time_itunes_schedule
+        time = Time.now
+        past = time - (60 * 60 * 24 * 8)
+        end_t = (time - (86400 * 2)).strftime("%Y-%m-%dT00:00:00Z")
         start_t = past.strftime("%Y-%m-%dT00:00:00Z")
 
         return start_t, end_t
